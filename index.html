@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>NarraMundi — RPG</title>
+<meta name="description" content="RPG colaborativo narrado por IA">
+<meta name="theme-color" content="#1a1008">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NarraMundi">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -18,7 +26,80 @@
     --sage2: #52917f;
     --shadow: rgba(0,0,0,0.55);
     --glow: rgba(201,146,42,0.35);
+
+    /* theme-aware */
+    --bg-body: #0a0703;
+    --bg-panel: rgba(30,18,4,.7);
+    --bg-panel-player: rgba(4,20,14,.7);
+    --text-muted: #7a6a52;
+    --border-master: #4a3010;
+    --border-player: #153d30;
   }
+
+  /* ── LIGHT THEME ── */
+  body.light {
+    --ink: #2a1a08;
+    --parchment: #2a1a08;
+    --parchment2: #3a2510;
+    --gold: #a06818;
+    --gold2: #b87c20;
+    --sage: #2a5040;
+    --sage2: #3a7060;
+    --shadow: rgba(0,0,0,0.2);
+    --glow: rgba(160,104,24,0.3);
+    --bg-body: #f0e6d0;
+    --bg-panel: rgba(255,245,225,.85);
+    --bg-panel-player: rgba(230,248,240,.85);
+    --text-muted: #7a6040;
+    --border-master: #c8a060;
+    --border-player: #70b090;
+  }
+  body.light { background: #f0e6d0; color: #2a1a08; }
+  body.light .bg-master { background: radial-gradient(ellipse at 20% 10%, #f5e8c8 0%, #ecdbb0 60%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='1' fill='%23c9922a' opacity='.12'/%3E%3Cpath d='M0 30h60M30 0v60' stroke='%23c9922a' stroke-width='.3' opacity='.08'/%3E%3C/svg%3E"); }
+  body.light .bg-player { background: radial-gradient(ellipse at 80% 90%, #d8f0e8 0%, #c8e8d8 60%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='1' fill='%2352917f' opacity='.12'/%3E%3Cpath d='M0 30h60M30 0v60' stroke='%2352917f' stroke-width='.3' opacity='.08'/%3E%3C/svg%3E"); }
+  body.light .bg-home { background: radial-gradient(ellipse at 50% 0%, #f5e8c8 0%, #ecdbb0 70%); }
+  body.light .panel-master { background: rgba(255,245,225,.85); border-color: #c8a060; }
+  body.light .panel-player { background: rgba(230,248,240,.85); border-color: #70b090; }
+  body.light input, body.light textarea, body.light select { background: rgba(255,255,255,.7); color: #2a1a08; }
+  body.light input::placeholder, body.light textarea::placeholder { color: #b09060; }
+  body.light .input-master { border-color: #c8a060; }
+  body.light .input-player { border-color: #70b090; }
+  body.light .role-card.master-card { background: linear-gradient(160deg,#f5e8c8,#ecdbb0); border-color: #c8a060; }
+  body.light .role-card.player-card { background: linear-gradient(160deg,#d8f0e8,#c8e8d8); border-color: #70b090; }
+  body.light .story-master { background: rgba(201,146,42,.08); }
+  body.light .story-player { background: rgba(82,145,127,.08); }
+  body.light .room-code-display { background: rgba(255,255,255,.5); border-color: #c8a060; }
+  body.light .player-item { background: rgba(255,255,255,.5); border-color: #d8c8a0; }
+  body.light .action-entry.player-action { background: rgba(82,145,127,.1); }
+  body.light .action-entry.ai-narration { background: rgba(201,146,42,.1); }
+  body.light #toast { background: #f5e8c8; border-color: var(--gold); color: var(--gold2); }
+  body.light .char-card { background: rgba(200,232,216,.5); border-color: #70b090; }
+  body.light .divider { background: linear-gradient(90deg, transparent, #c8a060, transparent); }
+  body.light .scroll-area::-webkit-scrollbar-thumb { background: #c8a060; }
+
+  /* ── THEME TOGGLE BUTTON ── */
+  #theme-toggle {
+    position: fixed;
+    top: 14px;
+    right: 16px;
+    z-index: 100;
+    background: rgba(0,0,0,.25);
+    border: 1px solid rgba(201,146,42,.3);
+    border-radius: 50px;
+    padding: 7px 14px;
+    font-family: 'Cinzel', serif;
+    font-size: .7rem;
+    color: var(--gold2);
+    cursor: pointer;
+    transition: all .2s;
+    backdrop-filter: blur(6px);
+    letter-spacing: .08em;
+  }
+  body.light #theme-toggle {
+    background: rgba(255,255,255,.5);
+    border-color: rgba(160,104,24,.3);
+  }
+  #theme-toggle:hover { border-color: var(--gold); }
 
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
@@ -439,6 +520,8 @@
 </head>
 <body>
 
+<button id="theme-toggle" onclick="toggleTheme()">☀️ Claro</button>
+
 <!-- ══════════ HOME ══════════ -->
 <div id="screen-home" class="screen active bg-home">
   <div class="site-header">
@@ -669,12 +752,17 @@ function initChannel() {
   // No-op: Firebase listener is started in startPolling
 }
 
-function startPolling() {
+async function startPolling() {
   if (!STATE.roomCode) return;
-  lastMsgIndex = 0;
   const url = FIREBASE_URL + '/rooms/' + STATE.roomCode + '/msgs.json';
 
-  // Use SSE-style long polling via setInterval
+  // Set lastMsgIndex to current count so we only process NEW messages
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    lastMsgIndex = data ? Object.keys(data).length : 0;
+  } catch(e) { lastMsgIndex = 0; }
+
   if (firebaseListener) clearInterval(firebaseListener);
   firebaseListener = setInterval(async () => {
     try {
@@ -682,6 +770,7 @@ function startPolling() {
       const data = await res.json();
       if (!data) return;
       const msgs = Object.values(data);
+      if (msgs.length <= lastMsgIndex) return;
       msgs.slice(lastMsgIndex).forEach(m => {
         handleMessage({ data: m });
       });
@@ -692,6 +781,8 @@ function startPolling() {
 
 async function broadcast(msg) {
   if (!STATE.roomCode) return;
+  // Tag every message with sender so we don't process our own
+  msg._sender = STATE.myName || '__master__';
   try {
     await fetch(FIREBASE_URL + '/rooms/' + STATE.roomCode + '/msgs.json', {
       method: 'POST',
@@ -704,6 +795,9 @@ async function broadcast(msg) {
 function handleMessage(e) {
   const msg = e.data;
   if (!msg || msg.room !== STATE.roomCode) return;
+  // Skip messages we sent ourselves
+  const myId = STATE.myName || '__master__';
+  if (msg._sender === myId) return;
 
   switch(msg.type) {
     case 'PLAYER_JOIN':
@@ -842,6 +936,7 @@ Regras:
     STATE.log = [];
 
     initChannel();
+    startPolling();
 
     // Save adventure to Firebase for players to retrieve
     await fetch(FIREBASE_URL + '/rooms/' + STATE.roomCode + '/adventure.json', {
@@ -1150,6 +1245,33 @@ function renderPlayerLog() {
   if (!el) return;
   el.innerHTML = STATE.log.map(renderLogEntry).join('');
   el.scrollTop = el.scrollHeight;
+}
+
+// ════════════════════════════════
+// THEME
+// ════════════════════════════════
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  localStorage.setItem('nm_theme', isLight ? 'light' : 'dark');
+  document.getElementById('theme-toggle').textContent = isLight ? '🌙 Escuro' : '☀️ Claro';
+}
+
+// Apply saved theme on load
+(function() {
+  const saved = localStorage.getItem('nm_theme');
+  if (saved === 'light') {
+    document.body.classList.add('light');
+    document.getElementById('theme-toggle').textContent = '🌙 Escuro';
+  }
+})();
+
+// ════════════════════════════════
+// PWA SERVICE WORKER
+// ════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
 }
 
 // ════════════════════════════════
