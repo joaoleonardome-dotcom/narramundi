@@ -644,52 +644,61 @@
 
 <script>
 // ════════════════════════════════
+// FIREBASE CONFIG
+// ════════════════════════════════
+const FIREBASE_URL = 'https://narra-mundi-default-rtdb.firebaseio.com';
+
+// ════════════════════════════════
 // STATE
 // ════════════════════════════════
 const STATE = {
-  role: null, // 'master' | 'player'
+  role: null,
   roomCode: null,
-  adventure: null,   // { genre, theme, intro, characters, attributes }
-  players: {},       // { playerName: { charName, charEmoji, charClass, attrs, playerName } }
-  currentTurn: null, // playerName
+  adventure: null,
+  players: {},
+  currentTurn: null,
   log: [],
   myName: null,
   myChar: null,
 };
 
-// Simple BroadcastChannel for same-device demo + localStorage for cross-device sim
-let bc;
+let firebaseListener = null;
+let lastMsgIndex = 0;
+
 function initChannel() {
-  try {
-    bc = new BroadcastChannel('narramundi_' + STATE.roomCode);
-    bc.onmessage = handleMessage;
-  } catch(e) {}
+  // No-op: Firebase listener is started in startPolling
 }
 
-// Fallback: poll localStorage
-let pollInterval;
 function startPolling() {
-  if (pollInterval) clearInterval(pollInterval);
-  pollInterval = setInterval(() => {
-    const raw = localStorage.getItem('nm_' + STATE.roomCode);
-    if (!raw) return;
-    const msgs = JSON.parse(raw);
-    const lastSeen = parseInt(localStorage.getItem('nm_seen_' + STATE.roomCode + '_' + STATE.myName) || '0');
-    msgs.forEach((m, i) => {
-      if (i > lastSeen - 1) handleMessage({ data: m });
-    });
-    localStorage.setItem('nm_seen_' + STATE.roomCode + '_' + STATE.myName, msgs.length);
-  }, 1200);
+  if (!STATE.roomCode) return;
+  lastMsgIndex = 0;
+  const url = FIREBASE_URL + '/rooms/' + STATE.roomCode + '/msgs.json';
+
+  // Use SSE-style long polling via setInterval
+  if (firebaseListener) clearInterval(firebaseListener);
+  firebaseListener = setInterval(async () => {
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data) return;
+      const msgs = Object.values(data);
+      msgs.slice(lastMsgIndex).forEach(m => {
+        handleMessage({ data: m });
+      });
+      lastMsgIndex = msgs.length;
+    } catch(e) {}
+  }, 1500);
 }
 
-function broadcast(msg) {
-  // BroadcastChannel (same device/tab)
-  if (bc) { try { bc.postMessage(msg); } catch(e) {} }
-  // localStorage (cross device/tab on same browser)
-  const key = 'nm_' + STATE.roomCode;
-  const arr = JSON.parse(localStorage.getItem(key) || '[]');
-  arr.push(msg);
-  localStorage.setItem(key, JSON.stringify(arr));
+async function broadcast(msg) {
+  if (!STATE.roomCode) return;
+  try {
+    await fetch(FIREBASE_URL + '/rooms/' + STATE.roomCode + '/msgs.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(msg)
+    });
+  } catch(e) { console.error('Firebase broadcast error', e); }
 }
 
 function handleMessage(e) {
@@ -834,9 +843,12 @@ Regras:
 
     initChannel();
 
-    // Save adventure to localStorage for players to retrieve
-    localStorage.setItem('nm_adv_' + STATE.roomCode, JSON.stringify(adventure));
-    localStorage.setItem('nm_' + STATE.roomCode, JSON.stringify([]));
+    // Save adventure to Firebase for players to retrieve
+    await fetch(FIREBASE_URL + '/rooms/' + STATE.roomCode + '/adventure.json', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(adventure)
+    });
 
     document.getElementById('master-story-display').textContent = adventure.intro;
     document.getElementById('room-code-value').textContent = STATE.roomCode;
@@ -985,25 +997,26 @@ function joinRoom() {
   if (!name) { showToast('⚠️ Digite seu nome!'); return; }
   if (!code) { showToast('⚠️ Digite o código da sala!'); return; }
 
-  const adv = localStorage.getItem('nm_adv_' + code);
-  if (!adv) { showToast('❌ Sala não encontrada. Verifique o código.'); return; }
-
   STATE.role = 'player';
   STATE.myName = name;
   STATE.roomCode = code;
-  STATE.adventure = JSON.parse(adv);
   STATE.log = [];
 
-  initChannel();
-  startPolling();
-  localStorage.setItem('nm_seen_' + code + '_' + name, '0');
-
-  broadcast({ type: 'PLAYER_JOIN', room: STATE.roomCode, playerName: name });
-
-  // Show character selection
-  document.getElementById('player-story-intro').textContent = STATE.adventure.intro;
-  renderCharacterGrid();
-  showScreen('screen-player-char');
+  // Fetch adventure from Firebase
+  showToast('🔍 Buscando sala...');
+  fetch(FIREBASE_URL + '/rooms/' + code + '/adventure.json')
+    .then(r => r.json())
+    .then(adv => {
+      if (!adv) { showToast('❌ Sala não encontrada. Verifique o código.'); return; }
+      STATE.adventure = adv;
+      initChannel();
+      startPolling();
+      broadcast({ type: 'PLAYER_JOIN', room: STATE.roomCode, playerName: name });
+      document.getElementById('player-story-intro').textContent = STATE.adventure.intro;
+      renderCharacterGrid();
+      showScreen('screen-player-char');
+    })
+    .catch(() => showToast('❌ Erro ao buscar sala.'));
 }
 
 // ════════════════════════════════
