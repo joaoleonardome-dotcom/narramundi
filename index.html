@@ -743,6 +743,49 @@
   body.light .inv-item { background: rgba(255,255,255,.5); border-color: #d8c8a0; }
   body.light .sheet-tab.active { border-color: var(--gold); color: var(--gold2); }
 
+
+  /* ── EFFECT NOTIFICATIONS ── */
+  .effect-card {
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    border-left: 3px solid;
+    font-size: .88rem;
+    animation: fadeIn .3s ease;
+  }
+  .effect-damage  { border-color: #c0392b; background: rgba(192,57,43,.1); }
+  .effect-sanity  { border-color: #9b59b6; background: rgba(155,89,182,.1); }
+  .effect-heal    { border-color: #27ae60; background: rgba(39,174,96,.1);  }
+  .effect-item    { border-color: #e8b84b; background: rgba(232,184,75,.1); }
+  .effect-card-title {
+    font-family: 'Cinzel', serif;
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .effect-damage .effect-card-title  { color: #e74c3c; }
+  .effect-sanity .effect-card-title  { color: #9b59b6; }
+  .effect-heal   .effect-card-title  { color: #27ae60; }
+  .effect-item   .effect-card-title  { color: #e8b84b; }
+  .effect-apply-btn {
+    margin-top: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: none;
+    font-family: 'Cinzel', serif;
+    font-size: .7rem;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .effect-damage  .effect-apply-btn { background: rgba(192,57,43,.25); color: #e74c3c; border: 1px solid #7a2020; }
+  .effect-sanity  .effect-apply-btn { background: rgba(155,89,182,.25); color: #9b59b6; border: 1px solid #6a3090; }
+  .effect-heal    .effect-apply-btn { background: rgba(39,174,96,.25);  color: #27ae60; border: 1px solid #1a7a40; }
+  .effect-item    .effect-apply-btn { background: rgba(232,184,75,.25); color: #e8b84b; border: 1px solid #8a6a10; }
+  .effect-apply-btn:hover { filter: brightness(1.2); }
+  .effect-applied { opacity: .5; pointer-events: none; }
+  .effect-applied .effect-apply-btn::before { content: '✔ '; }
+
 </style>
 </head>
 <body>
@@ -1014,14 +1057,16 @@
       <button class="player-sheet-btn" onclick="openMySheet()">📋 Minha Ficha</button>
     </div>
     <div class="panel panel-player">
-      <div class="panel-title">🎲 Dado (se necessário)</div>
+      <div class="panel-title">🎲 Role o Dado Primeiro!</div>
+      <p class="text-sm" style="margin-bottom:10px;">O dado determina o destino da sua ação.</p>
       <div class="dice-area">
-        <button class="dice-btn" onclick="rollDice('player')">🎲 Rolar d20</button>
+        <button class="dice-btn" id="player-dice-btn" onclick="rollDice('player')">🎲 Rolar d20</button>
         <div id="player-dice-result"></div>
       </div>
     </div>
-    <div class="panel panel-player">
+    <div class="panel panel-player" id="action-panel" style="opacity:.45;pointer-events:none;transition:opacity .3s;">
       <div class="panel-title">⚡ O que você faz?</div>
+      <p class="text-sm" style="margin-bottom:10px;" id="action-dice-hint">Role o dado acima para liberar sua ação.</p>
       <div class="field-wrap">
         <textarea id="player-action-text" class="input-player" placeholder="Descreva sua ação... (seja criativo!)"></textarea>
       </div>
@@ -1141,6 +1186,16 @@ function handleMessage(e) {
         addToLog({ type: 'ai-narration', header: '🎭 Nova Cena', text: msg.scene });
         if (msg.playerName === STATE.myName) {
           document.getElementById('player-action-scene').textContent = msg.scene;
+          // Reset dice state for new turn
+          lastDiceValue = null;
+          const panel = document.getElementById('action-panel');
+          if (panel) { panel.style.opacity = '.45'; panel.style.pointerEvents = 'none'; }
+          const hintEl = document.getElementById('action-dice-hint');
+          if (hintEl) hintEl.textContent = 'Role o dado acima para liberar sua ação.';
+          const diceBtn = document.getElementById('player-dice-btn');
+          if (diceBtn) { diceBtn.textContent = '🎲 Rolar d20'; diceBtn.style.borderColor = ''; }
+          document.getElementById('player-dice-result').innerHTML = '';
+          document.getElementById('player-action-text').value = '';
           showScreen('screen-player-action');
         } else {
           showScreen('screen-player-wait');
@@ -1161,8 +1216,21 @@ function handleMessage(e) {
       break;
     case 'AI_NARRATION':
       addToLog({ type: 'ai-narration', header: '📖 Narração', text: msg.text });
-      if (STATE.role === 'master') renderMasterLog();
-      if (STATE.role === 'player') { renderPlayerLog(); showScreen('screen-player-wait'); }
+      if (STATE.role === 'master') {
+        renderMasterLog();
+        // Show effect notifications to master so they can apply to sheets
+        if (msg.effects && msg.effects.length > 0) {
+          showEffectNotifications(msg.effects, msg.playerName);
+        }
+      }
+      if (STATE.role === 'player') {
+        renderPlayerLog();
+        showScreen('screen-player-wait');
+        // Show effects to the player whose turn it was
+        if (msg.effects && msg.effects.length > 0 && msg.playerName === STATE.myName) {
+          showEffectNotifications(msg.effects, STATE.myName);
+        }
+      }
       break;
     case 'SHEET_UPDATE':
       if (STATE.players[msg.playerName]) {
@@ -1550,29 +1618,67 @@ let lastDiceValue = null;
 function submitAction() {
   const text = document.getElementById('player-action-text').value.trim();
   if (!text) { showToast('⚠️ Descreva sua ação!'); return; }
+  if (!lastDiceValue) { showToast('⚠️ Role o dado antes de enviar!'); return; }
 
-  const action = { type: 'PLAYER_ACTION', room: STATE.roomCode, playerName: STATE.myName, action: text, dice: lastDiceValue };
+  const diceForNarration = lastDiceValue;
+  const action = { type: 'PLAYER_ACTION', room: STATE.roomCode, playerName: STATE.myName, action: text, dice: diceForNarration };
   broadcast(action);
-  addToLog({ type: 'player-action', header: '⚔️ Sua ação', text: text + (lastDiceValue ? ' [d20: ' + lastDiceValue + ']' : '') });
+  addToLog({ type: 'player-action', header: '⚔️ Sua ação', text: text + ' [d20: ' + diceForNarration + ']' });
   lastDiceValue = null;
   document.getElementById('player-action-text').value = '';
   renderPlayerLog();
   showScreen('screen-player-wait');
-  showToast('📤 Ação enviada ao Mestre!');
+  showToast('📤 Ação enviada! d20: ' + diceForNarration);
 
-  // AI narrates the result
-  narrateAction(text);
+  // AI narrates with the dice result
+  narrateAction(text, diceForNarration);
 }
 
-async function narrateAction(action) {
-  const lastLog = STATE.log.slice(-4).map(l => l.text).join(' ');
-  const prompt = `Você é o narrador de uma aventura de RPG "${STATE.adventure.title}".
+async function narrateAction(action, diceVal) {
+  const lastLog = STATE.log.slice(-5).map(l => `[${l.header}]: ${l.text}`).join('\n');
+  const sheet = (STATE.players[STATE.myName] || {}).sheet || {};
+  const hp = sheet.hp !== undefined ? sheet.hp : 100;
+  const san = sheet.san !== undefined ? sheet.san : 100;
 
-O personagem ${STATE.myChar.name} (${STATE.myChar.class}), interpretado por ${STATE.myName}, fez a seguinte ação:
-"${action}"
-${lastDiceValue ? `Resultado do dado d20: ${lastDiceValue} (1-7=falha, 8-14=sucesso parcial, 15-20=sucesso completo)` : ''}
+  let diceContext = '';
+  if (diceVal !== null && diceVal !== undefined) {
+    if (diceVal >= 15) {
+      diceContext = `Resultado do dado d20: ${diceVal} — SUCESSO ÉPICO. A ação saiu melhor do que o esperado, com resultados impressionantes e positivos para o personagem.`;
+    } else if (diceVal >= 8) {
+      diceContext = `Resultado do dado d20: ${diceVal} — SUCESSO PARCIAL. A ação funciona, mas com uma complicação, custo, ou consequência inesperada. Algo não sai perfeito.`;
+    } else {
+      diceContext = `Resultado do dado d20: ${diceVal} — FALHA. A ação não sai como planejado. Pode haver consequências negativas, perigo aumentado ou uma virada dramática desfavorável.`;
+    }
+  }
 
-Escreva a narração do resultado desta ação em 2-3 frases dramáticas, em português do Brasil. Considere os atributos do personagem. Seja vívido e cinematográfico. Responda apenas com a narração, sem JSON.`;
+  const prompt = `Você é o narrador de uma aventura de RPG: "${STATE.adventure.title}".
+
+Contexto recente:
+${lastLog || 'A aventura está em andamento.'}
+
+Personagem: ${STATE.myChar.name} (${STATE.myChar.class}) — Vida: ${hp}/100, Sanidade: ${san}/100
+Ação declarada: "${action}"
+${diceContext}
+
+INSTRUÇÕES:
+Responda SOMENTE com um JSON válido neste formato exato (sem texto fora do JSON):
+{
+  "narration": "3 frases dramáticas e cinematográficas narrando o resultado em português do Brasil. O resultado DEVE refletir o dado (sucesso épico = grandioso e positivo, sucesso parcial = funciona mas com porém, falha = algo deu errado de forma dramática).",
+  "effects": [
+    { "type": "damage",  "value": 15, "description": "Levou uma facada no ombro" },
+    { "type": "sanity",  "value": 10, "description": "A visão horrível abalou sua mente" },
+    { "type": "heal",    "value": 20, "description": "A poção restaurou suas forças" },
+    { "type": "item",    "target": "player", "item": "Espada Élfica", "description": "Você encontrou uma espada nas ruínas" }
+  ]
+}
+
+REGRAS para effects (inclua APENAS os que ocorrem na cena, pode ser lista vazia []):
+- "damage": dano de vida (value = quanto perde, inteiro positivo, proporcional ao dado — falha: 10-25, parcial: 5-15, épico: 0-5)
+- "sanity": perda de sanidade (value = quanto perde, use quando há horror, trauma, magia sombria)
+- "heal": recuperação de vida ou sanidade (value = quanto recupera)
+- "item": ganho de item (target = "player" para o jogador que age, item = nome do item)
+- Sucesso épico raramente causa dano; falha quase sempre causa dano ou perda de sanidade
+- Seja coerente com o contexto da cena e o gênero da aventura`;
 
   try {
     const res = await fetch('/.netlify/functions/message', {
@@ -1585,10 +1691,27 @@ Escreva a narração do resultado desta ação em 2-3 frases dramáticas, em por
       })
     });
     const data = await res.json();
-    const narration = data.content.map(i => i.text || '').join('').trim();
-    broadcast({ type: 'AI_NARRATION', room: STATE.roomCode, text: narration });
+    const raw = data.content.map(i => i.text || '').join('').trim();
+
+    let narration = raw;
+    let effects = [];
+    try {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        narration = parsed.narration || raw;
+        effects = parsed.effects || [];
+      }
+    } catch(e) { narration = raw; }
+
+    broadcast({ type: 'AI_NARRATION', room: STATE.roomCode, text: narration, effects, playerName: STATE.myName });
     addToLog({ type: 'ai-narration', header: '📖 Narração', text: narration });
     renderPlayerLog();
+
+    // Show effect notifications
+    if (effects.length > 0) {
+      showEffectNotifications(effects, STATE.myName);
+    }
   } catch(e) { console.error(e); }
 }
 
@@ -1631,14 +1754,40 @@ if ('serviceWorker' in navigator) {
 // ════════════════════════════════
 function rollDice(who) {
   const val = Math.floor(Math.random() * 20) + 1;
-  let emoji = val >= 15 ? '🌟' : val >= 8 ? '⚔️' : '💀';
-  let label = val >= 15 ? 'Sucesso épico!' : val >= 8 ? 'Sucesso parcial' : 'Falha!';
+  let emoji, label, hint;
+  if (val >= 15) {
+    emoji = '🌟'; label = 'Sucesso Épico!';
+    hint = 'Excelente! Sua ação tem grandes chances de sucesso.';
+  } else if (val >= 8) {
+    emoji = '⚔️'; label = 'Sucesso Parcial';
+    hint = 'Você consegue, mas com alguma complicação ou custo.';
+  } else {
+    emoji = '💀'; label = 'Falha!';
+    hint = 'As coisas não saíram como planejado...';
+  }
   const html = `<div class="dice-result">${val}</div><div class="dice-label">${emoji} ${label}</div>`;
   if (who === 'master') {
     document.getElementById('master-dice-result').innerHTML = html;
   } else {
     document.getElementById('player-dice-result').innerHTML = html;
     lastDiceValue = val;
+
+    // Unlock action panel
+    const panel = document.getElementById('action-panel');
+    if (panel) {
+      panel.style.opacity = '1';
+      panel.style.pointerEvents = 'auto';
+    }
+    // Update hint text
+    const hintEl = document.getElementById('action-dice-hint');
+    if (hintEl) hintEl.textContent = hint;
+
+    // Visual feedback on dice button
+    const btn = document.getElementById('player-dice-btn');
+    if (btn) {
+      btn.textContent = '🎲 Rolar novamente';
+      btn.style.borderColor = val >= 15 ? '#e8b84b' : val >= 8 ? '#52917f' : '#c0392b';
+    }
   }
 }
 
@@ -1892,6 +2041,100 @@ Escreva um encerramento épico e emocionante em 3-4 frases, em português do Bra
     document.getElementById('end-adventure-summary').textContent =
       'Os heróis descansaram após sua grande jornada. A história chegou ao fim.';
   }
+}
+
+
+// ════════════════════════════════
+// EFFECT NOTIFICATIONS
+// ════════════════════════════════
+function showEffectNotifications(effects, playerName) {
+  const p = STATE.players[playerName];
+  if (!p) return;
+
+  effects.forEach((fx, i) => {
+    const id = 'effect-' + Date.now() + '-' + i;
+    let typeClass, typeLabel, btnLabel, desc;
+
+    if (fx.type === 'damage') {
+      typeClass = 'effect-damage';
+      typeLabel = '❤️ Dano Recebido';
+      btnLabel = `➖ Aplicar -${fx.value} de Vida em ${p.charName || playerName}`;
+      desc = fx.description || `${p.charName} sofreu ${fx.value} de dano`;
+    } else if (fx.type === 'sanity') {
+      typeClass = 'effect-sanity';
+      typeLabel = '🧠 Perda de Sanidade';
+      btnLabel = `➖ Aplicar -${fx.value} de Sanidade em ${p.charName || playerName}`;
+      desc = fx.description || `${p.charName} perdeu ${fx.value} de sanidade`;
+    } else if (fx.type === 'heal') {
+      typeClass = 'effect-heal';
+      typeLabel = '💚 Recuperação';
+      btnLabel = `➕ Aplicar +${fx.value} em ${p.charName || playerName}`;
+      desc = fx.description || `${p.charName} recuperou ${fx.value}`;
+    } else if (fx.type === 'item') {
+      typeClass = 'effect-item';
+      typeLabel = '🎒 Item Encontrado';
+      btnLabel = `➕ Adicionar "${fx.item}" ao inventário de ${p.charName || playerName}`;
+      desc = fx.description || `${p.charName} obteve: ${fx.item}`;
+    } else { return; }
+
+    // Find a good container to show the notification
+    const logEl = document.getElementById(STATE.role === 'master' ? 'master-log' : 'player-log');
+    if (!logEl) return;
+
+    const card = document.createElement('div');
+    card.className = 'effect-card ' + typeClass;
+    card.id = id;
+    card.innerHTML = `
+      <div class="effect-card-title">${typeLabel}</div>
+      <div style="font-size:.88rem;color:var(--parchment2);margin-bottom:4px;">${desc}</div>
+      <button class="effect-apply-btn" onclick="applyEffect('${id}', '${playerName}', ${JSON.stringify(fx).replace(/'/g, '&#39;')})">
+        ${btnLabel}
+      </button>`;
+    logEl.appendChild(card);
+    logEl.scrollTop = logEl.scrollHeight;
+  });
+}
+
+async function applyEffect(cardId, playerName, fx) {
+  const p = STATE.players[playerName];
+  if (!p) return;
+  if (!p.sheet) p.sheet = { hp: 100, hpMax: 100, san: 100, sanMax: 100, inventory: [], notes: '' };
+
+  if (fx.type === 'damage') {
+    p.sheet.hp = Math.max(0, (p.sheet.hp || 100) - fx.value);
+    showToast('❤️ ' + (p.charName || playerName) + ': Vida agora ' + p.sheet.hp);
+  } else if (fx.type === 'sanity') {
+    p.sheet.san = Math.max(0, (p.sheet.san || 100) - fx.value);
+    showToast('🧠 ' + (p.charName || playerName) + ': Sanidade agora ' + p.sheet.san);
+  } else if (fx.type === 'heal') {
+    p.sheet.hp = Math.min(p.sheet.hpMax || 100, (p.sheet.hp || 100) + fx.value);
+    showToast('💚 ' + (p.charName || playerName) + ': Vida recuperada → ' + p.sheet.hp);
+  } else if (fx.type === 'item') {
+    if (!p.sheet.inventory) p.sheet.inventory = [];
+    p.sheet.inventory.push(fx.item);
+    showToast('🎒 "' + fx.item + '" adicionado ao inventário!');
+  }
+
+  STATE.players[playerName] = p;
+
+  // Mark card as applied
+  const card = document.getElementById(cardId);
+  if (card) card.classList.add('effect-applied');
+
+  // Sync sheet to Firebase and broadcast update
+  await broadcast({
+    type: 'SHEET_UPDATE',
+    room: STATE.roomCode,
+    playerName,
+    sheet: p.sheet
+  });
+  try {
+    await fetch(FIREBASE_URL + '/rooms/' + STATE.roomCode + '/sheets/' + playerName + '.json', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(p.sheet)
+    });
+  } catch(e) {}
 }
 
 </script>
