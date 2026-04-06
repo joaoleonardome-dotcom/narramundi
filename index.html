@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NarraMundi — RPG</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1008;
+    --parchment: #f5ead6;
+    --parchment2: #ede0c4;
+    --gold: #c9922a;
+    --gold2: #e8b84b;
+    --ember: #c0392b;
+    --ember2: #e74c3c;
+    --sage: #3d6b5e;
+    --sage2: #52917f;
+    --shadow: rgba(0,0,0,0.55);
+    --glow: rgba(201,146,42,0.35);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Crimson Pro', Georgia, serif;
+    background: var(--ink);
+    color: var(--parchment);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── BACKGROUNDS ── */
+  .bg-master {
+    background: radial-gradient(ellipse at 20% 10%, #2a1a00 0%, #0f0a04 60%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='1' fill='%23c9922a' opacity='.08'/%3E%3Cpath d='M0 30h60M30 0v60' stroke='%23c9922a' stroke-width='.3' opacity='.05'/%3E%3C/svg%3E");
+  }
+  .bg-player {
+    background: radial-gradient(ellipse at 80% 90%, #001a12 0%, #060c0a 60%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='1' fill='%2352917f' opacity='.1'/%3E%3Cpath d='M0 30h60M30 0v60' stroke='%2352917f' stroke-width='.3' opacity='.06'/%3E%3C/svg%3E");
+  }
+  .bg-home {
+    background: radial-gradient(ellipse at 50% 0%, #1a0d00 0%, #0a0703 70%);
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; min-height: 100vh; padding: 0 0 40px; animation: fadeIn .4s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+  /* ── HEADER ── */
+  .site-header {
+    text-align: center;
+    padding: 36px 20px 24px;
+    position: relative;
+  }
+  .site-header::after {
+    content: '';
+    display: block;
+    width: 80%;
+    max-width: 320px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 18px auto 0;
+  }
+  .logo {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(1.6rem, 7vw, 2.8rem);
+    color: var(--gold2);
+    letter-spacing: .04em;
+    text-shadow: 0 0 28px var(--glow), 0 2px 4px rgba(0,0,0,.7);
+  }
+  .logo-sub {
+    font-family: 'Cinzel', serif;
+    font-size: .75rem;
+    letter-spacing: .25em;
+    color: #a07840;
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+
+  /* ── CARDS HOME ── */
+  .home-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 20px 20px 0;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .role-card {
+    border: 1px solid;
+    border-radius: 12px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform .18s, box-shadow .18s;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .role-card:active { transform: scale(.97); }
+  .role-card.master-card {
+    border-color: #6b4a1a;
+    background: linear-gradient(160deg, #2a1800 0%, #170e02 100%);
+    box-shadow: 0 4px 24px rgba(201,146,42,.15);
+  }
+  .role-card.player-card {
+    border-color: #1d4d3f;
+    background: linear-gradient(160deg, #001a12 0%, #030d09 100%);
+    box-shadow: 0 4px 24px rgba(82,145,127,.15);
+  }
+  .role-card:hover { transform: translateY(-3px); }
+  .role-card.master-card:hover { box-shadow: 0 8px 32px rgba(201,146,42,.25); }
+  .role-card.player-card:hover { box-shadow: 0 8px 32px rgba(82,145,127,.25); }
+  .card-icon { font-size: 2.4rem; margin-bottom: 10px; }
+  .card-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+  }
+  .master-card .card-title { color: var(--gold2); }
+  .player-card .card-title { color: var(--sage2); }
+  .card-desc { font-size: .82rem; margin-top: 6px; color: #9a8870; line-height: 1.4; }
+
+  /* ── SECTION CONTAINER ── */
+  .section-wrap { max-width: 480px; margin: 0 auto; padding: 0 18px; }
+
+  /* ── PANEL ── */
+  .panel {
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 18px;
+    border: 1px solid;
+  }
+  .panel-master { border-color: #4a3010; background: rgba(30,18,4,.7); }
+  .panel-player { border-color: #153d30; background: rgba(4,20,14,.7); }
+  .panel-title {
+    font-family: 'Cinzel', serif;
+    font-size: .9rem;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .panel-master .panel-title { color: var(--gold); }
+  .panel-player .panel-title { color: var(--sage2); }
+
+  /* ── INPUTS ── */
+  input, textarea, select {
+    width: 100%;
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 1rem;
+    background: rgba(0,0,0,.4);
+    color: var(--parchment);
+    border-radius: 8px;
+    padding: 11px 14px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    -webkit-appearance: none;
+  }
+  input::placeholder, textarea::placeholder { color: #6a5a42; }
+  .input-master { border: 1px solid #4a3010; }
+  .input-master:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,146,42,.15); }
+  .input-player { border: 1px solid #153d30; }
+  .input-player:focus { border-color: var(--sage2); box-shadow: 0 0 0 3px rgba(82,145,127,.15); }
+  textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+  select option { background: #1a1008; }
+  .field-label {
+    font-family: 'Cinzel', serif;
+    font-size: .72rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+    display: block;
+  }
+  .field-master { color: #a07840; }
+  .field-player { color: var(--sage); }
+  .field-wrap { margin-bottom: 16px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Cinzel', serif;
+    font-size: .9rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    cursor: pointer;
+    transition: all .18s;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-master {
+    background: linear-gradient(135deg, #8b5e1a 0%, #c9922a 60%, #a06820 100%);
+    color: #fff8e8;
+    box-shadow: 0 4px 16px rgba(201,146,42,.3);
+  }
+  .btn-master:hover { box-shadow: 0 6px 22px rgba(201,146,42,.45); }
+  .btn-player {
+    background: linear-gradient(135deg, #1d5a48 0%, #3d8a72 60%, #2a6a56 100%);
+    color: #e0f5ee;
+    box-shadow: 0 4px 16px rgba(61,138,114,.3);
+  }
+  .btn-player:hover { box-shadow: 0 6px 22px rgba(61,138,114,.4); }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid #4a3010;
+    color: #a07840;
+    font-size: .78rem;
+    padding: 9px;
+    margin-top: 8px;
+  }
+  .btn-ghost:hover { border-color: var(--gold); color: var(--gold2); }
+  .btn-sm { padding: 10px 14px; font-size: .78rem; width: auto; display: inline-block; }
+  .btn-danger {
+    background: linear-gradient(135deg, #7a1a1a 0%, #c0392b 60%);
+    color: #ffe0e0;
+  }
+
+  /* ── STORY BOX ── */
+  .story-box {
+    border-radius: 10px;
+    padding: 18px;
+    margin: 16px 0;
+    font-size: 1.05rem;
+    line-height: 1.75;
+    font-style: italic;
+    color: var(--parchment2);
+    border-left: 3px solid;
+    position: relative;
+  }
+  .story-master { border-color: var(--gold); background: rgba(201,146,42,.06); }
+  .story-player { border-color: var(--sage2); background: rgba(82,145,127,.06); }
+  .story-box::before {
+    content: '"';
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 3rem;
+    color: var(--gold);
+    opacity: .18;
+    position: absolute;
+    top: -4px; left: 8px;
+    line-height: 1;
+  }
+
+  /* ── ROOM CODE ── */
+  .room-code-display {
+    text-align: center;
+    padding: 20px;
+    border: 2px dashed #4a3010;
+    border-radius: 12px;
+    margin: 16px 0;
+    background: rgba(0,0,0,.3);
+  }
+  .room-code-label { font-family: 'Cinzel', serif; font-size: .7rem; letter-spacing: .2em; color: #a07840; text-transform: uppercase; }
+  .room-code-value {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 2.4rem;
+    color: var(--gold2);
+    letter-spacing: .15em;
+    text-shadow: 0 0 20px var(--glow);
+    margin: 6px 0;
+  }
+  .room-code-hint { font-size: .82rem; color: #7a6a52; }
+
+  /* ── CHARACTER CARDS ── */
+  .char-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+  .char-card {
+    border: 2px solid #153d30;
+    border-radius: 10px;
+    padding: 14px 12px;
+    cursor: pointer;
+    transition: all .18s;
+    background: rgba(4,20,14,.5);
+    text-align: center;
+  }
+  .char-card:hover, .char-card.selected {
+    border-color: var(--sage2);
+    background: rgba(61,107,94,.2);
+    box-shadow: 0 0 16px rgba(82,145,127,.25);
+  }
+  .char-card.selected { border-color: var(--gold2); }
+  .char-emoji { font-size: 2rem; margin-bottom: 6px; }
+  .char-name { font-family: 'Cinzel', serif; font-size: .82rem; color: var(--sage2); font-weight: 700; }
+  .char-class { font-size: .75rem; color: #6a8a80; margin-top: 2px; }
+
+  /* ── ATTR BARS ── */
+  .attrs { margin-top: 14px; }
+  .attr-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .attr-name { font-family: 'Cinzel', serif; font-size: .68rem; letter-spacing: .1em; color: #a07840; width: 80px; flex-shrink: 0; text-transform: uppercase; }
+  .attr-bar-bg { flex: 1; height: 7px; background: rgba(255,255,255,.08); border-radius: 4px; overflow: hidden; }
+  .attr-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--sage), var(--gold)); transition: width .6s ease; }
+  .attr-val { font-family: 'Cinzel', serif; font-size: .72rem; color: var(--gold2); width: 24px; text-align: right; }
+
+  /* ── TURN BANNER ── */
+  .turn-banner {
+    background: linear-gradient(135deg, rgba(201,146,42,.15) 0%, rgba(201,146,42,.05) 100%);
+    border: 1px solid #5a3c10;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .turn-banner .turn-icon { font-size: 1.6rem; }
+  .turn-banner .turn-text { font-family: 'Cinzel', serif; font-size: .88rem; color: var(--gold2); }
+  .turn-banner .turn-sub { font-size: .8rem; color: #a07840; margin-top: 2px; }
+
+  /* ── DICE ── */
+  .dice-area { text-align: center; padding: 18px 0 8px; }
+  .dice-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 28px;
+    border: 2px solid var(--gold);
+    border-radius: 50px;
+    background: rgba(201,146,42,.08);
+    color: var(--gold2);
+    font-family: 'Cinzel', serif;
+    font-size: .88rem;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .dice-btn:hover { background: rgba(201,146,42,.18); box-shadow: 0 0 18px rgba(201,146,42,.3); }
+  .dice-result {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 2.8rem;
+    color: var(--gold2);
+    text-shadow: 0 0 28px var(--glow);
+    margin: 8px 0 4px;
+    animation: diceAnim .4s ease;
+  }
+  @keyframes diceAnim { 0%{transform:rotate(-20deg) scale(.6);opacity:0} 60%{transform:rotate(5deg) scale(1.1)} 100%{transform:none;opacity:1} }
+  .dice-label { font-size: .82rem; color: #a07840; font-style: italic; }
+
+  /* ── PLAYER LIST (mestre) ── */
+  .player-list { margin: 12px 0; }
+  .player-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border: 1px solid #2a1e0a;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: rgba(0,0,0,.3);
+  }
+  .player-item-left { display: flex; align-items: center; gap: 10px; }
+  .player-item-emoji { font-size: 1.4rem; }
+  .player-item-name { font-family: 'Cinzel', serif; font-size: .85rem; color: var(--parchment); }
+  .player-item-class { font-size: .75rem; color: #7a6a52; }
+  .player-item-turn { padding: 4px 10px; border-radius: 20px; font-family: 'Cinzel', serif; font-size: .7rem; cursor: pointer; border: 1px solid #5a3c10; background: rgba(201,146,42,.1); color: var(--gold2); transition: all .15s; }
+  .player-item-turn:hover { background: rgba(201,146,42,.25); }
+  .player-item-turn.active-turn { background: linear-gradient(135deg,#7a4a10,#c9922a); color: #fff; border-color: transparent; }
+
+  /* ── ACTION LOG ── */
+  .action-log { margin-top: 14px; }
+  .action-entry {
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    border-left: 3px solid;
+    font-size: .92rem;
+    line-height: 1.6;
+  }
+  .action-entry.player-action { border-color: var(--sage2); background: rgba(82,145,127,.07); }
+  .action-entry.ai-narration { border-color: var(--gold); background: rgba(201,146,42,.07); font-style: italic; }
+  .action-entry-header { font-family: 'Cinzel', serif; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 5px; }
+  .player-action .action-entry-header { color: var(--sage2); }
+  .ai-narration .action-entry-header { color: var(--gold); }
+
+  /* ── LOADING ── */
+  .loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    color: #a07840;
+    font-style: italic;
+    font-size: .9rem;
+  }
+  .loading-dots span {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    animation: dotPulse 1.2s infinite;
+    margin: 0 2px;
+  }
+  .loading-dots span:nth-child(2) { animation-delay: .2s; }
+  .loading-dots span:nth-child(3) { animation-delay: .4s; }
+  @keyframes dotPulse { 0%,80%,100%{opacity:.2;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
+
+  /* ── BADGE ── */
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-family: 'Cinzel', serif; font-size: .68rem; letter-spacing: .1em; }
+  .badge-gold { background: rgba(201,146,42,.15); border: 1px solid #4a3010; color: var(--gold2); }
+  .badge-sage { background: rgba(82,145,127,.15); border: 1px solid #1d5a48; color: var(--sage2); }
+
+  /* ── DIVIDER ── */
+  .divider { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, #3a2810, transparent); margin: 18px 0; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: #1a1008; border: 1px solid var(--gold); border-radius: 50px;
+    padding: 10px 22px; font-family: 'Cinzel', serif; font-size: .8rem; color: var(--gold2);
+    z-index: 999; transition: transform .3s, opacity .3s; opacity: 0; pointer-events: none;
+    white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  /* ── AWAITING TURN ── */
+  .await-box {
+    text-align: center;
+    padding: 32px 20px;
+    color: #6a5a42;
+    font-style: italic;
+    font-size: 1rem;
+  }
+  .await-box .await-icon { font-size: 2.4rem; margin-bottom: 10px; animation: float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+  /* ── MISC ── */
+  .mt8 { margin-top: 8px; }
+  .mt16 { margin-top: 16px; }
+  .text-center { text-align: center; }
+  .text-sm { font-size: .82rem; color: #7a6a52; }
+  .scroll-area { max-height: 340px; overflow-y: auto; padding-right: 2px; }
+  .scroll-area::-webkit-scrollbar { width: 4px; }
+  .scroll-area::-webkit-scrollbar-track { background: transparent; }
+  .scroll-area::-webkit-scrollbar-thumb { background: #3a2810; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════ HOME ══════════ -->
+<div id="screen-home" class="screen active bg-home">
+  <div class="site-header">
+    <div class="logo">NarraMundi</div>
+    <div class="logo-sub">Aventuras em mesa viva</div>
+  </div>
+  <div class="home-cards">
+    <div class="role-card master-card" onclick="showScreen('screen-master-setup')">
+      <div class="card-icon">📖</div>
+      <div class="card-title">Mestre</div>
+      <div class="card-desc">Crie a aventura e guie os heróis</div>
+    </div>
+    <div class="role-card player-card" onclick="showScreen('screen-player-join')">
+      <div class="card-icon">⚔️</div>
+      <div class="card-title">Jogador</div>
+      <div class="card-desc">Entre na aventura com um código</div>
+    </div>
+  </div>
+  <div class="section-wrap mt16">
+    <p class="text-center text-sm" style="padding:0 10px;">Uma ferramenta de roleplay colaborativo onde a IA narra sua história.</p>
+  </div>
+</div>
+
+<!-- ══════════ MASTER: SETUP ══════════ -->
+<div id="screen-master-setup" class="screen bg-master">
+  <div class="site-header">
+    <div class="logo" style="font-size:1.5rem;">📖 Mestre</div>
+    <div class="logo-sub">Crie sua aventura</div>
+  </div>
+  <div class="section-wrap">
+    <div class="panel panel-master">
+      <div class="panel-title">🌍 Tema da Aventura</div>
+      <div class="field-wrap">
+        <label class="field-label field-master">Gênero / Mundo</label>
+        <select id="adventure-genre" class="input-master">
+          <option value="">— Selecione ou personalize abaixo —</option>
+          <option value="fantasia medieval">⚔️ Fantasia Medieval</option>
+          <option value="ficção científica espacial">🚀 Ficção Científica Espacial</option>
+          <option value="terror e horror cósmico">👻 Terror & Horror Cósmico</option>
+          <option value="piratas e mares místicos">🏴‍☠️ Piratas & Mares Místicos</option>
+          <option value="mitologia brasileira e folclore">🌿 Mitologia Brasileira & Folclore</option>
+          <option value="steampunk">⚙️ Steampunk</option>
+          <option value="pós-apocalíptico">☢️ Pós-Apocalíptico</option>
+          <option value="detetive e mistério noir">🕵️ Detetive & Mistério Noir</option>
+        </select>
+      </div>
+      <div class="field-wrap">
+        <label class="field-label field-master">Descreva o tema (opcional)</label>
+        <textarea id="adventure-theme" class="input-master" placeholder="Ex: Uma vila esquecida na floresta amazônica onde criaturas do folclore começaram a atacar..."></textarea>
+      </div>
+      <div class="field-wrap">
+        <label class="field-label field-master">Número de jogadores</label>
+        <select id="player-count" class="input-master">
+          <option value="2">2 jogadores</option>
+          <option value="3">3 jogadores</option>
+          <option value="4" selected>4 jogadores</option>
+          <option value="5">5 jogadores</option>
+          <option value="6">6 jogadores</option>
+        </select>
+      </div>
+      <button class="btn btn-master" onclick="generateAdventure()">✨ Criar Aventura com IA</button>
+      <button class="btn btn-ghost" onclick="showScreen('screen-home')">← Voltar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MASTER: LOBBY ══════════ -->
+<div id="screen-master-lobby" class="screen bg-master">
+  <div class="site-header">
+    <div class="logo" style="font-size:1.5rem;">📖 Sala do Mestre</div>
+  </div>
+  <div class="section-wrap">
+    <div id="master-story-display" class="story-box story-master"></div>
+    <div class="room-code-display">
+      <div class="room-code-label">Código da Sala</div>
+      <div id="room-code-value" class="room-code-value">—</div>
+      <div class="room-code-hint">Passe este código para os jogadores</div>
+      <button class="btn btn-ghost btn-sm mt8" onclick="copyRoomCode()">📋 Copiar código</button>
+    </div>
+    <div class="panel panel-master">
+      <div class="panel-title">⚔️ Jogadores Conectados <span id="player-count-badge" class="badge badge-gold">0</span></div>
+      <div id="master-player-list" class="player-list"></div>
+      <div id="master-start-wrap" style="display:none;">
+        <div class="divider"></div>
+        <button class="btn btn-master" onclick="startAdventure()">⚔️ Iniciar Aventura!</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MASTER: GAME ══════════ -->
+<div id="screen-master-game" class="screen bg-master">
+  <div class="site-header">
+    <div class="logo" style="font-size:1.3rem;">📖 Conduzindo Aventura</div>
+  </div>
+  <div class="section-wrap">
+    <div class="panel panel-master">
+      <div class="panel-title">🎭 Turno do Jogador</div>
+      <p class="text-sm" style="margin-bottom:12px;">Toque em "Turno" para escolher quem age agora:</p>
+      <div id="master-turn-list" class="player-list"></div>
+    </div>
+    <div class="panel panel-master">
+      <div class="panel-title">📜 Registro da Aventura</div>
+      <div id="master-log" class="action-log scroll-area"></div>
+    </div>
+    <div class="panel panel-master">
+      <div class="panel-title">🎲 Rolar Dado (d20)</div>
+      <div class="dice-area">
+        <button class="dice-btn" onclick="rollDice('master')">🎲 Rolar d20</button>
+        <div id="master-dice-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PLAYER: JOIN ══════════ -->
+<div id="screen-player-join" class="screen bg-player">
+  <div class="site-header">
+    <div class="logo" style="font-size:1.5rem;">⚔️ Jogador</div>
+    <div class="logo-sub">Entre na aventura</div>
+  </div>
+  <div class="section-wrap">
+    <div class="panel panel-player">
+      <div class="panel-title">🗝️ Entrar na Sala</div>
+      <div class="field-wrap">
+        <label class="field-label field-player">Seu nome</label>
+        <input id="player-name-input" class="input-player" type="text" placeholder="Como você se chama?" maxlength="20">
+      </div>
+      <div class="field-wrap">
+        <label class="field-label field-player">Código da Sala</label>
+        <input id="room-code-input" class="input-player" type="text" placeholder="Ex: FOGO-7" maxlength="10" style="text-transform:uppercase;letter-spacing:.2em;font-family:'Cinzel',serif;font-size:1.1rem;">
+      </div>
+      <button class="btn btn-player" onclick="joinRoom()">🗝️ Entrar na Sala</button>
+      <button class="btn btn-ghost" onclick="showScreen('screen-home')">← Voltar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PLAYER: CHARACTER SELECT ══════════ -->
+<div id="screen-player-char" class="screen bg-player">
+  <div class="site-header">
+    <div class="logo" style="font-size:1.4rem;">⚔️ Escolha seu Herói</div>
+  </div>
+  <div class="section-wrap">
+    <div id="player-story-intro" class="story-box story-player"></div>
+    <div class="panel panel-player">
+      <div class="panel-title">🧙 Personagens Disponíveis</div>
+      <div id="char-grid" class="char-grid"></div>
+      <div id="char-detail" style="display:none;">
+        <div class="divider"></div>
+        <div id="char-detail-content"></div>
+        <button class="btn btn-player mt8" onclick="confirmCharacter()">✔️ Escolher este Personagem</button>
+      </div>
+    </div>
+    <p id="char-wait-msg" class="text-center text-sm mt16" style="display:none;">Aguardando o Mestre iniciar a aventura...</p>
+  </div>
+</div>
+
+<!-- ══════════ PLAYER: WAITING ══════════ -->
+<div id="screen-player-wait" class="screen bg-player">
+  <div class="site-header">
+    <div class="logo" style="font-size:1.3rem;"></div>
+  </div>
+  <div class="section-wrap">
+    <div id="player-char-banner" class="turn-banner"></div>
+    <div class="await-box">
+      <div class="await-icon">⏳</div>
+      <p>Aguardando sua vez...</p>
+      <p class="text-sm mt8">O Mestre irá chamar você quando chegar o momento.</p>
+    </div>
+    <div class="panel panel-player">
+      <div class="panel-title">📜 Registro da Aventura</div>
+      <div id="player-log" class="action-log scroll-area"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PLAYER: ACTION ══════════ -->
+<div id="screen-player-action" class="screen bg-player">
+  <div class="site-header">
+    <div class="logo" style="font-size:1.3rem;">⚔️ Sua Vez!</div>
+  </div>
+  <div class="section-wrap">
+    <div id="player-action-scene" class="story-box story-player"></div>
+    <div class="panel panel-player">
+      <div class="panel-title">🎲 Dado (se necessário)</div>
+      <div class="dice-area">
+        <button class="dice-btn" onclick="rollDice('player')">🎲 Rolar d20</button>
+        <div id="player-dice-result"></div>
+      </div>
+    </div>
+    <div class="panel panel-player">
+      <div class="panel-title">⚡ O que você faz?</div>
+      <div class="field-wrap">
+        <textarea id="player-action-text" class="input-player" placeholder="Descreva sua ação... (seja criativo!)"></textarea>
+      </div>
+      <button class="btn btn-player" onclick="submitAction()">📤 Enviar Ação</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════
+// STATE
+// ════════════════════════════════
+const STATE = {
+  role: null, // 'master' | 'player'
+  roomCode: null,
+  adventure: null,   // { genre, theme, intro, characters, attributes }
+  players: {},       // { playerName: { charName, charEmoji, charClass, attrs, playerName } }
+  currentTurn: null, // playerName
+  log: [],
+  myName: null,
+  myChar: null,
+};
+
+// Simple BroadcastChannel for same-device demo + localStorage for cross-device sim
+let bc;
+function initChannel() {
+  try {
+    bc = new BroadcastChannel('narramundi_' + STATE.roomCode);
+    bc.onmessage = handleMessage;
+  } catch(e) {}
+}
+
+// Fallback: poll localStorage
+let pollInterval;
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(() => {
+    const raw = localStorage.getItem('nm_' + STATE.roomCode);
+    if (!raw) return;
+    const msgs = JSON.parse(raw);
+    const lastSeen = parseInt(localStorage.getItem('nm_seen_' + STATE.roomCode + '_' + STATE.myName) || '0');
+    msgs.forEach((m, i) => {
+      if (i > lastSeen - 1) handleMessage({ data: m });
+    });
+    localStorage.setItem('nm_seen_' + STATE.roomCode + '_' + STATE.myName, msgs.length);
+  }, 1200);
+}
+
+function broadcast(msg) {
+  // BroadcastChannel (same device/tab)
+  if (bc) { try { bc.postMessage(msg); } catch(e) {} }
+  // localStorage (cross device/tab on same browser)
+  const key = 'nm_' + STATE.roomCode;
+  const arr = JSON.parse(localStorage.getItem(key) || '[]');
+  arr.push(msg);
+  localStorage.setItem(key, JSON.stringify(arr));
+}
+
+function handleMessage(e) {
+  const msg = e.data;
+  if (!msg || msg.room !== STATE.roomCode) return;
+
+  switch(msg.type) {
+    case 'PLAYER_JOIN':
+      if (STATE.role === 'master') {
+        STATE.players[msg.playerName] = { playerName: msg.playerName };
+        renderMasterLobbyPlayers();
+      }
+      break;
+    case 'CHAR_SELECTED':
+      STATE.players[msg.playerName] = msg.charData;
+      if (STATE.role === 'master') renderMasterLobbyPlayers();
+      break;
+    case 'ADVENTURE_START':
+      if (STATE.role === 'player') {
+        STATE.adventure = msg.adventure;
+        STATE.players = msg.players;
+        renderPlayerLog();
+        showScreen('screen-player-wait');
+        renderPlayerCharBanner();
+        addToLog({ type: 'ai-narration', header: '📖 Início da Aventura', text: msg.adventure.intro });
+      }
+      break;
+    case 'TURN_ASSIGNED':
+      STATE.currentTurn = msg.playerName;
+      if (STATE.role === 'master') renderMasterGamePlayers();
+      if (STATE.role === 'player') {
+        addToLog({ type: 'ai-narration', header: '🎭 Nova Cena', text: msg.scene });
+        if (msg.playerName === STATE.myName) {
+          document.getElementById('player-action-scene').textContent = msg.scene;
+          showScreen('screen-player-action');
+        } else {
+          showScreen('screen-player-wait');
+        }
+      }
+      break;
+    case 'PLAYER_ACTION':
+      if (STATE.role === 'master') {
+        addToLog({ type: 'player-action', header: '⚔️ Ação de ' + msg.playerName, text: msg.action + (msg.dice ? ' [d20: ' + msg.dice + ']' : '') });
+        renderMasterLog();
+        // Show it prominently
+        showToast('⚔️ ' + msg.playerName + ' agiu!');
+      }
+      if (STATE.role === 'player' && msg.playerName !== STATE.myName) {
+        addToLog({ type: 'player-action', header: '⚔️ ' + msg.playerName + ' agiu', text: msg.action });
+        renderPlayerLog();
+      }
+      break;
+    case 'AI_NARRATION':
+      addToLog({ type: 'ai-narration', header: '📖 Narração', text: msg.text });
+      if (STATE.role === 'master') renderMasterLog();
+      if (STATE.role === 'player') { renderPlayerLog(); showScreen('screen-player-wait'); }
+      break;
+  }
+}
+
+// ════════════════════════════════
+// SCREENS
+// ════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const s = document.getElementById(id);
+  if (s) { s.classList.add('active'); window.scrollTo(0,0); }
+}
+
+function showToast(msg, dur=2800) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ════════════════════════════════
+// MASTER: GENERATE ADVENTURE
+// ════════════════════════════════
+async function generateAdventure() {
+  const genre = document.getElementById('adventure-genre').value;
+  const theme = document.getElementById('adventure-theme').value.trim();
+  const playerCount = parseInt(document.getElementById('player-count').value);
+
+  const combined = genre || theme;
+  if (!combined) { showToast('⚠️ Escolha um gênero ou descreva o tema!'); return; }
+
+  const btn = document.querySelector('#screen-master-setup .btn-master');
+  btn.textContent = '✨ A IA está criando...';
+  btn.disabled = true;
+
+  const prompt = `Você é um narrador épico de RPG de mesa. Crie uma aventura completa no estilo: "${combined || theme}".
+
+Responda SOMENTE com um JSON válido neste formato exato (sem texto fora do JSON, sem markdown):
+{
+  "title": "Nome da aventura",
+  "intro": "Introdução épica e imersiva da aventura com 3-4 parágrafos. Use linguagem dramática e literária em português do Brasil.",
+  "attributes": ["Attr1","Attr2","Attr3","Attr4","Attr5"],
+  "characters": [
+    {
+      "name": "Nome do personagem",
+      "class": "Classe/Papel",
+      "emoji": "🧙",
+      "backstory": "Breve história do personagem (2 frases)",
+      "attrs": [8,6,7,9,5]
+    }
+  ]
+}
+
+Regras:
+- Crie exatamente ${Math.max(playerCount, 4)} personagens únicos e temáticos
+- Os 5 atributos devem ser temáticos ao gênero (ex: para fantasia medieval: Força, Magia, Agilidade, Sabedoria, Sorte)
+- Valores dos atributos entre 1 e 10 (soma deve ser ~35 por personagem)
+- Emojis temáticos para cada personagem
+- Tudo em português do Brasil
+- A intro deve ter no máximo 3 frases curtas
+- O backstory de cada personagem deve ter no máximo 1 frase`;
+
+  try {
+    const res = await fetch('/.netlify/functions/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const text = data.content.map(i => i.text || '').join('');
+    // Extract JSON robustly
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('JSON não encontrado na resposta');
+    const adventure = JSON.parse(jsonMatch[0]);
+
+    STATE.adventure = adventure;
+    STATE.role = 'master';
+    STATE.roomCode = generateRoomCode();
+    STATE.players = {};
+    STATE.log = [];
+
+    initChannel();
+
+    // Save adventure to localStorage for players to retrieve
+    localStorage.setItem('nm_adv_' + STATE.roomCode, JSON.stringify(adventure));
+    localStorage.setItem('nm_' + STATE.roomCode, JSON.stringify([]));
+
+    document.getElementById('master-story-display').textContent = adventure.intro;
+    document.getElementById('room-code-value').textContent = STATE.roomCode;
+    renderMasterLobbyPlayers();
+
+    showScreen('screen-master-lobby');
+    addToLog({ type: 'ai-narration', header: '📖 Introdução', text: adventure.intro });
+
+  } catch(e) {
+    showToast('❌ Erro ao criar aventura. Tente novamente.');
+    console.error(e);
+  }
+  btn.textContent = '✨ Criar Aventura com IA';
+  btn.disabled = false;
+}
+
+function generateRoomCode() {
+  const words = ['FOGO','PEDRA','VENTO','AGUA','LUZ','SOMBRA','TERRA','GELO','TROVAO','LAMA'];
+  const w = words[Math.floor(Math.random() * words.length)];
+  const n = Math.floor(Math.random() * 90) + 10;
+  return w + '-' + n;
+}
+
+function copyRoomCode() {
+  navigator.clipboard?.writeText(STATE.roomCode).then(() => showToast('✅ Código copiado!'));
+}
+
+// ════════════════════════════════
+// MASTER: LOBBY
+// ════════════════════════════════
+function renderMasterLobbyPlayers() {
+  const list = document.getElementById('master-player-list');
+  const badge = document.getElementById('player-count-badge');
+  const startWrap = document.getElementById('master-start-wrap');
+  const keys = Object.keys(STATE.players);
+  badge.textContent = keys.length;
+  list.innerHTML = keys.length === 0
+    ? '<p class="text-sm" style="text-align:center;padding:12px 0;">Aguardando jogadores entrarem...</p>'
+    : keys.map(n => {
+        const p = STATE.players[n];
+        return `<div class="player-item">
+          <div class="player-item-left">
+            <span class="player-item-emoji">${p.emoji || '🧙'}</span>
+            <div>
+              <div class="player-item-name">${p.playerName || n}</div>
+              <div class="player-item-class">${p.charName ? p.charName + ' · ' + p.charClass : 'Escolhendo personagem...'}</div>
+            </div>
+          </div>
+          ${p.charName ? '<span class="badge badge-gold">✔</span>' : '<span class="badge" style="color:#6a5a42;border-color:#3a2810;">...</span>'}
+        </div>`;
+      }).join('');
+  const allChosen = keys.length >= 2 && keys.every(n => STATE.players[n].charName);
+  startWrap.style.display = allChosen ? 'block' : 'none';
+}
+
+// ════════════════════════════════
+// MASTER: START ADVENTURE
+// ════════════════════════════════
+function startAdventure() {
+  STATE.log = [];
+  addToLog({ type: 'ai-narration', header: '📖 Início da Aventura', text: STATE.adventure.intro });
+  broadcast({ type: 'ADVENTURE_START', room: STATE.roomCode, adventure: STATE.adventure, players: STATE.players });
+  renderMasterGamePlayers();
+  renderMasterLog();
+  showScreen('screen-master-game');
+}
+
+function renderMasterGamePlayers() {
+  const list = document.getElementById('master-turn-list');
+  list.innerHTML = Object.keys(STATE.players).map(n => {
+    const p = STATE.players[n];
+    const active = STATE.currentTurn === n;
+    return `<div class="player-item">
+      <div class="player-item-left">
+        <span class="player-item-emoji">${p.emoji}</span>
+        <div>
+          <div class="player-item-name">${p.playerName}</div>
+          <div class="player-item-class">${p.charName} · ${p.charClass}</div>
+        </div>
+      </div>
+      <button class="player-item-turn ${active ? 'active-turn' : ''}" onclick="assignTurn('${n}')">
+        ${active ? '🎯 Vez dele' : 'Turno'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+async function assignTurn(playerName) {
+  STATE.currentTurn = playerName;
+  renderMasterGamePlayers();
+
+  // Generate scene with AI
+  const player = STATE.players[playerName];
+  const lastActions = STATE.log.slice(-4).map(l => `[${l.header}]: ${l.text}`).join('\n');
+
+  const prompt = `Você é o narrador de uma aventura de RPG no estilo "${STATE.adventure.title}".
+
+Últimos acontecimentos:
+${lastActions || 'A aventura está começando.'}
+
+Agora é a vez do personagem: ${player.charName} (${player.charClass}), jogado por ${player.playerName}.
+
+Escreva uma cena curta e dramática (2-3 frases) descrevendo o que está acontecendo neste momento e qual desafio ou situação o personagem enfrenta. Termine com uma pergunta ou convite à ação. Seja conciso mas imersivo. Responda apenas com o texto da cena, sem JSON.`;
+
+  const sceneEl = document.getElementById('master-log');
+  const loadDiv = document.createElement('div');
+  loadDiv.className = 'loading';
+  loadDiv.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div> A IA está narrando...';
+  sceneEl.appendChild(loadDiv);
+
+  try {
+    const res = await fetch('/.netlify/functions/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const scene = data.content.map(i => i.text || '').join('').trim();
+    loadDiv.remove();
+    broadcast({ type: 'TURN_ASSIGNED', room: STATE.roomCode, playerName, scene });
+    addToLog({ type: 'ai-narration', header: '🎭 Cena — ' + player.charName, text: scene });
+    renderMasterLog();
+  } catch(e) {
+    loadDiv.remove();
+    showToast('❌ Erro ao gerar cena.');
+  }
+}
+
+function renderMasterLog() {
+  const el = document.getElementById('master-log');
+  if (!el) return;
+  el.innerHTML = STATE.log.map(renderLogEntry).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+// ════════════════════════════════
+// PLAYER: JOIN
+// ════════════════════════════════
+function joinRoom() {
+  const name = document.getElementById('player-name-input').value.trim();
+  const code = document.getElementById('room-code-input').value.trim().toUpperCase();
+  if (!name) { showToast('⚠️ Digite seu nome!'); return; }
+  if (!code) { showToast('⚠️ Digite o código da sala!'); return; }
+
+  const adv = localStorage.getItem('nm_adv_' + code);
+  if (!adv) { showToast('❌ Sala não encontrada. Verifique o código.'); return; }
+
+  STATE.role = 'player';
+  STATE.myName = name;
+  STATE.roomCode = code;
+  STATE.adventure = JSON.parse(adv);
+  STATE.log = [];
+
+  initChannel();
+  startPolling();
+  localStorage.setItem('nm_seen_' + code + '_' + name, '0');
+
+  broadcast({ type: 'PLAYER_JOIN', room: STATE.roomCode, playerName: name });
+
+  // Show character selection
+  document.getElementById('player-story-intro').textContent = STATE.adventure.intro;
+  renderCharacterGrid();
+  showScreen('screen-player-char');
+}
+
+// ════════════════════════════════
+// PLAYER: CHARACTER SELECT
+// ════════════════════════════════
+let selectedCharIndex = null;
+
+function renderCharacterGrid() {
+  const grid = document.getElementById('char-grid');
+  grid.innerHTML = STATE.adventure.characters.map((c, i) =>
+    `<div class="char-card" id="char-card-${i}" onclick="selectChar(${i})">
+      <div class="char-emoji">${c.emoji}</div>
+      <div class="char-name">${c.name}</div>
+      <div class="char-class">${c.class}</div>
+    </div>`
+  ).join('');
+}
+
+function selectChar(i) {
+  selectedCharIndex = i;
+  document.querySelectorAll('.char-card').forEach((c, j) => {
+    c.classList.toggle('selected', j === i);
+  });
+  const c = STATE.adventure.characters[i];
+  const detail = document.getElementById('char-detail');
+  detail.style.display = 'block';
+  document.getElementById('char-detail-content').innerHTML = `
+    <div style="text-align:center;margin-bottom:12px;">
+      <span style="font-size:2.8rem;">${c.emoji}</span>
+      <div style="font-family:'Cinzel',serif;font-size:1.1rem;color:var(--sage2);margin-top:6px;">${c.name}</div>
+      <div style="font-size:.82rem;color:#6a8a80;">${c.class}</div>
+    </div>
+    <p style="font-style:italic;color:var(--parchment2);font-size:.9rem;margin-bottom:14px;">${c.backstory}</p>
+    <div class="attrs">
+      ${STATE.adventure.attributes.map((attr, j) => `
+        <div class="attr-row">
+          <div class="attr-name">${attr}</div>
+          <div class="attr-bar-bg"><div class="attr-bar-fill" style="width:${c.attrs[j]*10}%"></div></div>
+          <div class="attr-val">${c.attrs[j]}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function confirmCharacter() {
+  if (selectedCharIndex === null) { showToast('⚠️ Escolha um personagem!'); return; }
+  const c = STATE.adventure.characters[selectedCharIndex];
+  STATE.myChar = c;
+  const charData = {
+    playerName: STATE.myName,
+    charName: c.name,
+    charClass: c.class,
+    emoji: c.emoji,
+    backstory: c.backstory,
+    attrs: c.attrs,
+  };
+  STATE.players[STATE.myName] = charData;
+  broadcast({ type: 'CHAR_SELECTED', room: STATE.roomCode, playerName: STATE.myName, charData });
+  document.getElementById('char-wait-msg').style.display = 'block';
+  document.getElementById('char-grid').style.pointerEvents = 'none';
+  document.getElementById('char-detail').style.display = 'none';
+  showToast('✔️ ' + c.name + ' confirmado!');
+  // Player waits for master to start
+  renderPlayerCharBanner();
+  showScreen('screen-player-wait');
+  renderPlayerLog();
+}
+
+function renderPlayerCharBanner() {
+  const el = document.getElementById('player-char-banner');
+  if (!el || !STATE.myChar) return;
+  el.innerHTML = `
+    <div class="turn-icon">${STATE.myChar.emoji}</div>
+    <div>
+      <div class="turn-text">${STATE.myChar.name}</div>
+      <div class="turn-sub">${STATE.myChar.class} · ${STATE.myName}</div>
+    </div>`;
+}
+
+// ════════════════════════════════
+// PLAYER: ACTION
+// ════════════════════════════════
+let lastDiceValue = null;
+
+function submitAction() {
+  const text = document.getElementById('player-action-text').value.trim();
+  if (!text) { showToast('⚠️ Descreva sua ação!'); return; }
+
+  const action = { type: 'PLAYER_ACTION', room: STATE.roomCode, playerName: STATE.myName, action: text, dice: lastDiceValue };
+  broadcast(action);
+  addToLog({ type: 'player-action', header: '⚔️ Sua ação', text: text + (lastDiceValue ? ' [d20: ' + lastDiceValue + ']' : '') });
+  lastDiceValue = null;
+  document.getElementById('player-action-text').value = '';
+  renderPlayerLog();
+  showScreen('screen-player-wait');
+  showToast('📤 Ação enviada ao Mestre!');
+
+  // AI narrates the result
+  narrateAction(text);
+}
+
+async function narrateAction(action) {
+  const lastLog = STATE.log.slice(-4).map(l => l.text).join(' ');
+  const prompt = `Você é o narrador de uma aventura de RPG "${STATE.adventure.title}".
+
+O personagem ${STATE.myChar.name} (${STATE.myChar.class}), interpretado por ${STATE.myName}, fez a seguinte ação:
+"${action}"
+${lastDiceValue ? `Resultado do dado d20: ${lastDiceValue} (1-7=falha, 8-14=sucesso parcial, 15-20=sucesso completo)` : ''}
+
+Escreva a narração do resultado desta ação em 2-3 frases dramáticas, em português do Brasil. Considere os atributos do personagem. Seja vívido e cinematográfico. Responda apenas com a narração, sem JSON.`;
+
+  try {
+    const res = await fetch('/.netlify/functions/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const narration = data.content.map(i => i.text || '').join('').trim();
+    broadcast({ type: 'AI_NARRATION', room: STATE.roomCode, text: narration });
+    addToLog({ type: 'ai-narration', header: '📖 Narração', text: narration });
+    renderPlayerLog();
+  } catch(e) { console.error(e); }
+}
+
+function renderPlayerLog() {
+  const el = document.getElementById('player-log');
+  if (!el) return;
+  el.innerHTML = STATE.log.map(renderLogEntry).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+// ════════════════════════════════
+// DICE
+// ════════════════════════════════
+function rollDice(who) {
+  const val = Math.floor(Math.random() * 20) + 1;
+  let emoji = val >= 15 ? '🌟' : val >= 8 ? '⚔️' : '💀';
+  let label = val >= 15 ? 'Sucesso épico!' : val >= 8 ? 'Sucesso parcial' : 'Falha!';
+  const html = `<div class="dice-result">${val}</div><div class="dice-label">${emoji} ${label}</div>`;
+  if (who === 'master') {
+    document.getElementById('master-dice-result').innerHTML = html;
+  } else {
+    document.getElementById('player-dice-result').innerHTML = html;
+    lastDiceValue = val;
+  }
+}
+
+// ════════════════════════════════
+// LOG HELPERS
+// ════════════════════════════════
+function addToLog(entry) {
+  STATE.log.push(entry);
+}
+
+function renderLogEntry(e) {
+  return `<div class="action-entry ${e.type}">
+    <div class="action-entry-header">${e.header}</div>
+    <div>${e.text}</div>
+  </div>`;
+}
+</script>
+</body>
+</html>
