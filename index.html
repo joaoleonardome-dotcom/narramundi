@@ -1120,7 +1120,14 @@ function handleMessage(e) {
     case 'ADVENTURE_START':
       if (STATE.role === 'player') {
         STATE.adventure = msg.adventure;
+        // Merge: keep local sheet data, update rest from master
+        const myLocalData = STATE.players[STATE.myName] || {};
         STATE.players = msg.players;
+        if (STATE.players[STATE.myName]) {
+          STATE.players[STATE.myName].sheet = myLocalData.sheet || {};
+        }
+        // Load sheet from Firebase to get latest saved data
+        loadSheetFromFirebase(STATE.myName);
         renderPlayerLog();
         showScreen('screen-player-wait');
         renderPlayerCharBanner();
@@ -1160,6 +1167,10 @@ function handleMessage(e) {
     case 'SHEET_UPDATE':
       if (STATE.players[msg.playerName]) {
         STATE.players[msg.playerName].sheet = msg.sheet;
+        // If the sheet modal is open for this player, refresh it
+        if (sheetTargetPlayer === msg.playerName) {
+          openSheetFor(msg.playerName);
+        }
       }
       break;
     case 'ADVENTURE_END':
@@ -1492,6 +1503,14 @@ function confirmCharacter() {
     backstory: c.backstory,
     attrs: c.attrs,
   };
+  // Init sheet with base attrs if not set
+  charData.sheet = {
+    hp: 100, hpMax: 100,
+    san: 100, sanMax: 100,
+    attrs: [...c.attrs],
+    inventory: [],
+    notes: ''
+  };
   STATE.players[STATE.myName] = charData;
   broadcast({ type: 'CHAR_SELECTED', room: STATE.roomCode, playerName: STATE.myName, charData });
   document.getElementById('char-wait-msg').style.display = 'block';
@@ -1507,6 +1526,14 @@ function confirmCharacter() {
 function renderPlayerCharBanner() {
   const el = document.getElementById('player-char-banner');
   if (!el || !STATE.myChar) return;
+  // Ensure sheet is initialized
+  if (STATE.players[STATE.myName] && !STATE.players[STATE.myName].sheet) {
+    STATE.players[STATE.myName].sheet = {
+      hp: 100, hpMax: 100, san: 100, sanMax: 100,
+      attrs: STATE.myChar.attrs ? [...STATE.myChar.attrs] : [],
+      inventory: [], notes: ''
+    };
+  }
   el.innerHTML = `
     <div class="turn-icon">${STATE.myChar.emoji}</div>
     <div>
@@ -1634,8 +1661,20 @@ function renderLogEntry(e) {
 // ════════════════════════════════
 let sheetTargetPlayer = null; // playerName being viewed/edited
 
+async function loadSheetFromFirebase(playerName) {
+  if (!STATE.roomCode || !playerName) return;
+  try {
+    const res = await fetch(FIREBASE_URL + '/rooms/' + STATE.roomCode + '/sheets/' + playerName + '.json');
+    const sheet = await res.json();
+    if (sheet && STATE.players[playerName]) {
+      STATE.players[playerName].sheet = sheet;
+    }
+  } catch(e) {}
+}
+
 function openMySheet() {
-  openSheetFor(STATE.myName);
+  // Make sure we have latest sheet from Firebase before opening
+  loadSheetFromFirebase(STATE.myName).then(() => openSheetFor(STATE.myName));
 }
 
 function openSheetFor(playerName) {
