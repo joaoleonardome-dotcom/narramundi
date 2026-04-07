@@ -1056,21 +1056,21 @@
     <div style="text-align:right;margin-bottom:6px;">
       <button class="player-sheet-btn" onclick="openMySheet()">📋 Minha Ficha</button>
     </div>
-    <div class="panel panel-player">
-      <div class="panel-title">🎲 Role o Dado Primeiro!</div>
-      <p class="text-sm" style="margin-bottom:10px;">O dado determina o destino da sua ação.</p>
+    <div class="panel panel-player" id="action-panel">
+      <div class="panel-title">⚡ O que você faz?</div>
+      <div class="field-wrap">
+        <textarea id="player-action-text" class="input-player" placeholder="Descreva o que seu personagem faz ou fala..."></textarea>
+      </div>
+      <button class="btn btn-player" onclick="submitAction()">📤 Enviar Resposta</button>
+    </div>
+
+    <div class="panel panel-player" id="dice-panel" style="display:none;">
+      <div class="panel-title">🎲 A IA pede uma rolagem!</div>
+      <p class="text-sm" id="dice-reason" style="margin-bottom:10px;font-style:italic;"></p>
       <div class="dice-area">
-        <button class="dice-btn" id="player-dice-btn" onclick="rollDice('player')">🎲 Rolar d20</button>
+        <button class="dice-btn" id="player-dice-btn" onclick="rollAndConclude()">🎲 Rolar d20</button>
         <div id="player-dice-result"></div>
       </div>
-    </div>
-    <div class="panel panel-player" id="action-panel" style="opacity:.45;pointer-events:none;transition:opacity .3s;">
-      <div class="panel-title">⚡ O que você faz?</div>
-      <p class="text-sm" style="margin-bottom:10px;" id="action-dice-hint">Role o dado acima para liberar sua ação.</p>
-      <div class="field-wrap">
-        <textarea id="player-action-text" class="input-player" placeholder="Descreva sua ação... (seja criativo!)"></textarea>
-      </div>
-      <button class="btn btn-player" onclick="submitAction()">📤 Enviar Ação</button>
     </div>
   </div>
 </div>
@@ -1186,16 +1186,19 @@ function handleMessage(e) {
         addToLog({ type: 'ai-narration', header: '🎭 Nova Cena', text: msg.scene });
         if (msg.playerName === STATE.myName) {
           document.getElementById('player-action-scene').textContent = msg.scene;
-          // Reset dice state for new turn
+          // Reset action/dice state for new turn
           lastDiceValue = null;
-          const panel = document.getElementById('action-panel');
-          if (panel) { panel.style.opacity = '.45'; panel.style.pointerEvents = 'none'; }
-          const hintEl = document.getElementById('action-dice-hint');
-          if (hintEl) hintEl.textContent = 'Role o dado acima para liberar sua ação.';
-          const diceBtn = document.getElementById('player-dice-btn');
-          if (diceBtn) { diceBtn.textContent = '🎲 Rolar d20'; diceBtn.style.borderColor = ''; }
-          document.getElementById('player-dice-result').innerHTML = '';
-          document.getElementById('player-action-text').value = '';
+          pendingAction = null;
+          const dicePanel = document.getElementById('dice-panel');
+          if (dicePanel) dicePanel.style.display = 'none';
+          const actionPanel = document.getElementById('action-panel');
+          if (actionPanel) { actionPanel.style.opacity = '1'; actionPanel.style.pointerEvents = 'auto'; }
+          const textarea = document.getElementById('player-action-text');
+          if (textarea) { textarea.value = ''; textarea.disabled = false; }
+          const submitBtn = document.querySelector('#action-panel .btn-player');
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '📤 Enviar Resposta'; }
+          const diceResult = document.getElementById('player-dice-result');
+          if (diceResult) diceResult.innerHTML = '';
           showScreen('screen-player-action');
         } else {
           showScreen('screen-player-wait');
@@ -1285,32 +1288,33 @@ async function generateAdventure() {
   btn.textContent = '✨ A IA está criando...';
   btn.disabled = true;
 
-  const prompt = `Você é um narrador épico de RPG de mesa. Crie uma aventura completa no estilo: "${combined || theme}".
+  const prompt = `Você é o narrador de um RPG de aventura para jovens de 14 anos. Crie uma aventura no estilo: "${combined || theme}".
+
+Use linguagem simples, animada e acessível. Sem palavras difíceis ou conteúdo adulto.
 
 Responda SOMENTE com um JSON válido neste formato exato (sem texto fora do JSON, sem markdown):
 {
-  "title": "Nome da aventura",
-  "intro": "Introdução épica e imersiva da aventura com 3-4 parágrafos. Use linguagem dramática e literária em português do Brasil.",
+  "title": "Nome curto e empolgante da aventura",
+  "intro": "Introdução curta com no máximo 3 frases simples e animadas, apresentando o cenário e o mistério/desafio principal. Linguagem clara para jovens de 14 anos.",
   "attributes": ["Attr1","Attr2","Attr3","Attr4","Attr5"],
   "characters": [
     {
       "name": "Nome do personagem",
       "class": "Classe/Papel",
       "emoji": "🧙",
-      "backstory": "Breve história do personagem (2 frases)",
+      "backstory": "Uma frase curta e simples sobre o personagem.",
       "attrs": [8,6,7,9,5]
     }
   ]
 }
 
 Regras:
-- Crie exatamente ${Math.max(playerCount, 4)} personagens únicos e temáticos
-- Os 5 atributos devem ser temáticos ao gênero (ex: para fantasia medieval: Força, Magia, Agilidade, Sabedoria, Sorte)
-- Valores dos atributos entre 1 e 10 (soma deve ser ~35 por personagem)
-- Emojis temáticos para cada personagem
+- Crie exatamente ${Math.max(playerCount, 4)} personagens únicos e divertidos
+- Os 5 atributos devem combinar com o gênero (ex: fantasia: Força, Magia, Agilidade, Sabedoria, Sorte)
+- Valores dos atributos entre 1 e 10 (soma ~35 por personagem)
+- Emojis divertidos para cada personagem
 - Tudo em português do Brasil
-- A intro deve ter no máximo 3 frases curtas
-- O backstory de cada personagem deve ter no máximo 1 frase`;
+- Linguagem simples, sem drama exagerado ou conteúdo adulto`;
 
   try {
     const res = await fetch('/.netlify/functions/message', {
@@ -1443,14 +1447,14 @@ async function assignTurn(playerName) {
   const player = STATE.players[playerName];
   const lastActions = STATE.log.slice(-4).map(l => `[${l.header}]: ${l.text}`).join('\n');
 
-  const prompt = `Você é o narrador de uma aventura de RPG no estilo "${STATE.adventure.title}".
+  const prompt = `Você é o narrador de uma aventura de RPG para jovens de 14 anos: "${STATE.adventure.title}".
 
 Últimos acontecimentos:
 ${lastActions || 'A aventura está começando.'}
 
-Agora é a vez do personagem: ${player.charName} (${player.charClass}), jogado por ${player.playerName}.
+Agora é a vez de: ${player.charName} (${player.charClass}), jogado por ${player.playerName}.
 
-Escreva uma cena curta e dramática (2-3 frases) descrevendo o que está acontecendo neste momento e qual desafio ou situação o personagem enfrenta. Termine com uma pergunta ou convite à ação. Seja conciso mas imersivo. Responda apenas com o texto da cena, sem JSON.`;
+Escreva uma cena CURTA com no máximo 2 frases simples e diretas, descrevendo o que está acontecendo e terminando com uma pergunta clara e animada para o jogador. Use linguagem simples e acessível para jovens de 14 anos. Sem palavras difíceis. Responda apenas com o texto da cena, sem JSON.`;
 
   const sceneEl = document.getElementById('master-log');
   const loadDiv = document.createElement('div');
@@ -1615,105 +1619,186 @@ function renderPlayerCharBanner() {
 // ════════════════════════════════
 let lastDiceValue = null;
 
+let pendingAction = null; // stores action text while waiting for dice
+
 function submitAction() {
   const text = document.getElementById('player-action-text').value.trim();
-  if (!text) { showToast('⚠️ Descreva sua ação!'); return; }
-  if (!lastDiceValue) { showToast('⚠️ Role o dado antes de enviar!'); return; }
+  if (!text) { showToast('⚠️ Descreva o que você faz!'); return; }
 
-  const diceForNarration = lastDiceValue;
-  const action = { type: 'PLAYER_ACTION', room: STATE.roomCode, playerName: STATE.myName, action: text, dice: diceForNarration };
-  broadcast(action);
-  addToLog({ type: 'player-action', header: '⚔️ Sua ação', text: text + ' [d20: ' + diceForNarration + ']' });
-  lastDiceValue = null;
-  document.getElementById('player-action-text').value = '';
+  pendingAction = text;
+  broadcast({ type: 'PLAYER_ACTION', room: STATE.roomCode, playerName: STATE.myName, action: text });
+  addToLog({ type: 'player-action', header: '⚔️ ' + STATE.myName + ' respondeu', text });
   renderPlayerLog();
-  showScreen('screen-player-wait');
-  showToast('📤 Ação enviada! d20: ' + diceForNarration);
 
-  // AI narrates with the dice result
-  narrateAction(text, diceForNarration);
+  // Disable textarea and button while IA decides
+  document.getElementById('player-action-text').disabled = true;
+  document.querySelector('#action-panel .btn-player').disabled = true;
+  document.querySelector('#action-panel .btn-player').textContent = '⏳ A IA está analisando...';
+
+  analyzeAction(text);
 }
 
-async function narrateAction(action, diceVal) {
-  const lastLog = STATE.log.slice(-5).map(l => `[${l.header}]: ${l.text}`).join('\n');
+async function analyzeAction(action) {
+  const lastLog = STATE.log.slice(-5).map(l => '[' + l.header + ']: ' + l.text).join('\n');
   const sheet = (STATE.players[STATE.myName] || {}).sheet || {};
-  const hp = sheet.hp !== undefined ? sheet.hp : 100;
+  const hp  = sheet.hp  !== undefined ? sheet.hp  : 100;
   const san = sheet.san !== undefined ? sheet.san : 100;
 
-  let diceContext = '';
-  if (diceVal !== null && diceVal !== undefined) {
-    if (diceVal >= 15) {
-      diceContext = `Resultado do dado d20: ${diceVal} — SUCESSO ÉPICO. A ação saiu melhor do que o esperado, com resultados impressionantes e positivos para o personagem.`;
-    } else if (diceVal >= 8) {
-      diceContext = `Resultado do dado d20: ${diceVal} — SUCESSO PARCIAL. A ação funciona, mas com uma complicação, custo, ou consequência inesperada. Algo não sai perfeito.`;
-    } else {
-      diceContext = `Resultado do dado d20: ${diceVal} — FALHA. A ação não sai como planejado. Pode haver consequências negativas, perigo aumentado ou uma virada dramática desfavorável.`;
-    }
-  }
-
-  const prompt = `Você é o narrador de uma aventura de RPG: "${STATE.adventure.title}".
+  const prompt = \`Você é o narrador de uma aventura de RPG para jovens de 14 anos: "\${STATE.adventure.title}".
 
 Contexto recente:
-${lastLog || 'A aventura está em andamento.'}
+\${lastLog || 'A aventura está começando.'}
 
-Personagem: ${STATE.myChar.name} (${STATE.myChar.class}) — Vida: ${hp}/100, Sanidade: ${san}/100
-Ação declarada: "${action}"
-${diceContext}
+Personagem: \${STATE.myChar.name} (\${STATE.myChar.class}) — Vida: \${hp}/100, Sanidade: \${san}/100
+Resposta do jogador: "\${action}"
 
-INSTRUÇÕES:
-Responda SOMENTE com um JSON válido neste formato exato (sem texto fora do JSON):
+Analise a resposta e decida: esta ação envolve risco, combate, habilidade física ou mental que justifica rolar um dado?
+
+Responda SOMENTE com JSON válido:
 {
-  "narration": "3 frases dramáticas e cinematográficas narrando o resultado em português do Brasil. O resultado DEVE refletir o dado (sucesso épico = grandioso e positivo, sucesso parcial = funciona mas com porém, falha = algo deu errado de forma dramática).",
-  "effects": [
-    { "type": "damage",  "value": 15, "description": "Levou uma facada no ombro" },
-    { "type": "sanity",  "value": 10, "description": "A visão horrível abalou sua mente" },
-    { "type": "heal",    "value": 20, "description": "A poção restaurou suas forças" },
-    { "type": "item",    "target": "player", "item": "Espada Élfica", "description": "Você encontrou uma espada nas ruínas" }
-  ]
-}
-
-REGRAS para effects (inclua APENAS os que ocorrem na cena, pode ser lista vazia []):
-- "damage": dano de vida (value = quanto perde, inteiro positivo, proporcional ao dado — falha: 10-25, parcial: 5-15, épico: 0-5)
-- "sanity": perda de sanidade (value = quanto perde, use quando há horror, trauma, magia sombria)
-- "heal": recuperação de vida ou sanidade (value = quanto recupera)
-- "item": ganho de item (target = "player" para o jogador que age, item = nome do item)
-- Sucesso épico raramente causa dano; falha quase sempre causa dano ou perda de sanidade
-- Seja coerente com o contexto da cena e o gênero da aventura`;
+  "needsDice": true ou false,
+  "reason": "Se needsDice=true: frase curta e animada explicando POR QUE precisa rolar (ex: 'Você vai tentar escalar a muralha! Role para ver se consegue!'). Se false: deixe vazio.",
+  "narration": "Se needsDice=false: narre o resultado direto em 2-3 frases simples, animadas e acessíveis para jovens de 14 anos. Se needsDice=true: deixe vazio.",
+  "effects": []
+}\`;
 
   try {
     const res = await fetch('/.netlify/functions/message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 600, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
     const raw = data.content.map(i => i.text || '').join('').trim();
 
-    let narration = raw;
-    let effects = [];
+    let result = {};
     try {
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        narration = parsed.narration || raw;
-        effects = parsed.effects || [];
-      }
-    } catch(e) { narration = raw; }
+      const m = raw.match(/\{[\s\S]*\}/);
+      result = m ? JSON.parse(m[0]) : {};
+    } catch(e) {}
 
-    broadcast({ type: 'AI_NARRATION', room: STATE.roomCode, text: narration, effects, playerName: STATE.myName });
-    addToLog({ type: 'ai-narration', header: '📖 Narração', text: narration });
-    renderPlayerLog();
+    // Reset action panel
+    document.getElementById('player-action-text').disabled = false;
+    const btn = document.querySelector('#action-panel .btn-player');
+    btn.disabled = false;
+    btn.textContent = '📤 Enviar Resposta';
 
-    // Show effect notifications
-    if (effects.length > 0) {
-      showEffectNotifications(effects, STATE.myName);
+    if (result.needsDice) {
+      // Show dice panel with reason
+      document.getElementById('dice-reason').textContent = result.reason || 'Role o dado para ver o que acontece!';
+      document.getElementById('dice-panel').style.display = 'block';
+      document.getElementById('player-dice-result').innerHTML = '';
+      lastDiceValue = null;
+      document.getElementById('player-dice-btn').textContent = '🎲 Rolar d20';
+      document.getElementById('action-panel').style.opacity = '.5';
+      document.getElementById('action-panel').style.pointerEvents = 'none';
+      showToast('🎲 A IA quer que você role o dado!');
+    } else {
+      // No dice needed — narrate directly
+      const narration = result.narration || 'A história continua...';
+      const effects = result.effects || [];
+      finishNarration(narration, effects);
     }
-  } catch(e) { console.error(e); }
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Erro ao analisar ação.');
+    document.getElementById('player-action-text').disabled = false;
+    const btn = document.querySelector('#action-panel .btn-player');
+    btn.disabled = false;
+    btn.textContent = '📤 Enviar Resposta';
+  }
 }
+
+async function rollAndConclude() {
+  const val = Math.floor(Math.random() * 20) + 1;
+  lastDiceValue = val;
+
+  let emoji, label;
+  if (val >= 15)      { emoji = '🌟'; label = 'Sucesso incrível!'; }
+  else if (val >= 8)  { emoji = '⚔️'; label = 'Sucesso parcial'; }
+  else                { emoji = '💀'; label = 'Falha!'; }
+
+  document.getElementById('player-dice-result').innerHTML =
+    '<div class="dice-result">' + val + '</div><div class="dice-label">' + emoji + ' ' + label + '</div>';
+  document.getElementById('player-dice-btn').textContent = '⏳ Narrando...';
+  document.getElementById('player-dice-btn').disabled = true;
+
+  const action = pendingAction || '';
+  const lastLog = STATE.log.slice(-5).map(l => '[' + l.header + ']: ' + l.text).join('\n');
+  const sheet = (STATE.players[STATE.myName] || {}).sheet || {};
+  const hp  = sheet.hp  !== undefined ? sheet.hp  : 100;
+  const san = sheet.san !== undefined ? sheet.san : 100;
+
+  let diceContext;
+  if (val >= 15)     diceContext = 'SUCESSO INCRÍVEL (d20=' + val + '): A ação saiu melhor do que o esperado!';
+  else if (val >= 8) diceContext = 'SUCESSO PARCIAL (d20=' + val + '): Funcionou, mas com alguma complicação.';
+  else               diceContext = 'FALHA (d20=' + val + '): Algo saiu errado de um jeito interessante.';
+
+  const prompt = \`Você é o narrador de uma aventura de RPG para jovens de 14 anos: "\${STATE.adventure.title}".
+
+Contexto recente:
+\${lastLog || 'A aventura está em andamento.'}
+
+Personagem: \${STATE.myChar.name} (\${STATE.myChar.class}) — Vida: \${hp}/100, Sanidade: \${san}/100
+Ação do jogador: "\${action}"
+Resultado da rolagem: \${diceContext}
+
+Responda SOMENTE com JSON válido:
+{
+  "narration": "2-3 frases curtas, animadas e diretas narrando o resultado. Linguagem simples e acessível para jovens de 14 anos. Sem palavras difíceis. O resultado DEVE refletir o dado.",
+  "effects": [
+    { "type": "damage", "value": 10, "description": "Levou um golpe no braço" },
+    { "type": "sanity", "value": 5,  "description": "A cena foi assustadora" },
+    { "type": "heal",   "value": 15, "description": "A poção curou seus ferimentos" },
+    { "type": "item",   "target": "player", "item": "Chave de ferro", "description": "Você achou uma chave" }
+  ]
+}
+
+Inclua apenas os efeitos que realmente aconteceram na cena. Pode ser lista vazia [].\`;
+
+  try {
+    const res = await fetch('/.netlify/functions/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const raw = data.content.map(i => i.text || '').join('').trim();
+
+    let result = {};
+    try {
+      const m = raw.match(/\{[\s\S]*\}/);
+      result = m ? JSON.parse(m[0]) : {};
+    } catch(e) {}
+
+    finishNarration(result.narration || 'A história continua...', result.effects || []);
+
+    // Reset dice panel
+    document.getElementById('dice-panel').style.display = 'none';
+    document.getElementById('action-panel').style.opacity = '1';
+    document.getElementById('action-panel').style.pointerEvents = 'auto';
+    document.getElementById('player-action-text').value = '';
+    document.getElementById('player-dice-btn').disabled = false;
+    pendingAction = null;
+    lastDiceValue = null;
+
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Erro ao narrar resultado.');
+    document.getElementById('player-dice-btn').disabled = false;
+    document.getElementById('player-dice-btn').textContent = '🎲 Tentar novamente';
+  }
+}
+
+function finishNarration(narration, effects) {
+  broadcast({ type: 'AI_NARRATION', room: STATE.roomCode, text: narration, effects: effects || [], playerName: STATE.myName });
+  addToLog({ type: 'ai-narration', header: '📖 Narração', text: narration });
+  renderPlayerLog();
+  showScreen('screen-player-wait');
+  if (effects && effects.length > 0) showEffectNotifications(effects, STATE.myName);
+  showToast('📖 Cena narrada!');
+}
+
 
 function renderPlayerLog() {
   const el = document.getElementById('player-log');
@@ -2010,12 +2095,12 @@ function confirmEndAdventure() {
 async function endAdventure() {
   // Generate a closing summary with AI
   const lastLog = STATE.log.slice(-6).map(l => l.text).join(' ');
-  const prompt = `Você é o narrador da aventura "${STATE.adventure ? STATE.adventure.title : 'Aventura'}".
+  const prompt = `Você é o narrador da aventura "${STATE.adventure ? STATE.adventure.title : 'Aventura'}" para jovens de 14 anos.
 
-Com base nos últimos acontecimentos:
+Últimos acontecimentos:
 ${lastLog || 'A aventura está encerrando.'}
 
-Escreva um encerramento épico e emocionante em 3-4 frases, em português do Brasil, como se fosse o último parágrafo de um livro. Seja poético e conclusivo.`;
+Escreva um encerramento animado e emocionante em 2-3 frases curtas e simples, em português do Brasil. Celebre os heróis de forma positiva e encorajadora. Linguagem acessível para jovens.`;
 
   broadcast({ type: 'ADVENTURE_END', room: STATE.roomCode });
   showScreen('screen-end');
